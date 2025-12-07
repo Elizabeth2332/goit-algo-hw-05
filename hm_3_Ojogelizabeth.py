@@ -1,16 +1,18 @@
 from timeit import timeit
 
-# ---------------------- TIME MEASUREMENT ----------------------
+# ------------------ TIME MEASUREMENT FUNCTION ------------------
 
 def measure_time(func, text, pattern, number=100):
     return timeit(lambda: func(text, pattern), number=number)
 
-# ---------------------- KMP ALGORITHM ----------------------
+
+# ------------------ KMP ALGORITHM ------------------
 
 def compute_lps(pattern):
     lps = [0] * len(pattern)
     length = 0
     i = 1
+
     while i < len(pattern):
         if pattern[i] == pattern[length]:
             length += 1
@@ -24,13 +26,18 @@ def compute_lps(pattern):
                 i += 1
     return lps
 
-def kmp_search(main_string, pattern):
-    M, N = len(pattern), len(main_string)
-    lps = compute_lps(pattern)
 
+def kmp_search(text, pattern):
+    M = len(pattern)
+    N = len(text)
+    if M == 0 or N == 0:
+        return -1
+
+    lps = compute_lps(pattern)
     i = j = 0
+
     while i < N:
-        if pattern[j] == main_string[i]:
+        if text[i] == pattern[j]:
             i += 1
             j += 1
         elif j != 0:
@@ -40,9 +47,11 @@ def kmp_search(main_string, pattern):
 
         if j == M:
             return i - j
+
     return -1
 
-# ---------------------- BOYER–MOORE ALGORITHM ----------------------
+
+# ------------------ BOYER-MOORE ------------------
 
 def build_shift_table(pattern):
     table = {}
@@ -52,76 +61,89 @@ def build_shift_table(pattern):
     table.setdefault(pattern[-1], length)
     return table
 
+
 def boyer_moore_search(text, pattern):
-    shift_table = build_shift_table(pattern)
+    shift = build_shift_table(pattern)
     i = 0
+
     while i <= len(text) - len(pattern):
         j = len(pattern) - 1
+
         while j >= 0 and text[i + j] == pattern[j]:
             j -= 1
+
         if j < 0:
             return i
-        i += shift_table.get(text[i + len(pattern) - 1], len(pattern))
+
+        i += shift.get(text[i + len(pattern) - 1], len(pattern))
+
     return -1
 
-# ---------------------- RABIN–KARP ALGORITHM ----------------------
+
+# ------------------ RABIN-KARP ------------------
 
 def polynomial_hash(s, base=256, modulus=101):
-    n = len(s)
-    h = 0
-    for i, char in enumerate(s):
-        h = (h * base + ord(char)) % modulus
-    return h
+    hash_value = 0
+    for i, ch in enumerate(s):
+        power = pow(base, len(s) - i - 1, modulus)
+        hash_value = (hash_value + ord(ch) * power) % modulus
+    return hash_value
+
 
 def rabin_karp_search(text, pattern):
-    m, n = len(pattern), len(text)
-    if m > n:
+    n, m = len(text), len(pattern)
+    if m == 0 or n == 0 or m > n:
         return -1
 
     base = 256
-    modulus = 101
+    mod = 101
 
-    pattern_hash = polynomial_hash(pattern, base, modulus)
-    current_hash = polynomial_hash(text[:m], base, modulus)
-
-    h_multiplier = pow(base, m - 1, modulus)
+    pattern_hash = polynomial_hash(pattern, base, mod)
+    window_hash = polynomial_hash(text[:m], base, mod)
+    h = pow(base, m - 1, mod)
 
     for i in range(n - m + 1):
-        if current_hash == pattern_hash:
+        if window_hash == pattern_hash:
             if text[i:i+m] == pattern:
                 return i
 
         if i < n - m:
-            current_hash = (current_hash - ord(text[i]) * h_multiplier) % modulus
-            current_hash = (current_hash * base + ord(text[i + m])) % modulus
-            current_hash = (current_hash + modulus) % modulus
+            window_hash = (window_hash - ord(text[i]) * h) % mod
+            window_hash = (window_hash * base + ord(text[i + m])) % mod
 
     return -1
 
-# ---------------------- READ FILES ----------------------
+
+# ------------------ SAFE FILE READING ------------------
 
 def read_file(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        return open(path, "r", encoding="utf-8").read()
+    except UnicodeDecodeError:
+        return open(path, "r", encoding="latin-1").read()
+
+
+# ------------------ LOAD TEXT FILES ------------------
 
 text1 = read_file("article1.txt")
 text2 = read_file("article2.txt")
 
-# ---------------------- SUBSTRINGS TO TEST ----------------------
+# ------------------ SELECT SUBSTRINGS ------------------
 
 existing1 = "алгоритм"
-missing1  = "qwertyzxcv"
+missing1 = "qwertyzxcv"
 
 existing2 = "даних"
-missing2  = "asdfghjkl"
-
-# ---------------------- TEST ALL ALGORITHMS ----------------------
+missing2 = "asdfghjkl"
 
 algorithms = [
     ("KMP", kmp_search),
     ("Boyer-Moore", boyer_moore_search),
-    ("Rabin-Karp", rabin_karp_search)
+    ("Rabin-Karp", rabin_karp_search),
 ]
+
+
+# ------------------ RUN MEASUREMENTS ------------------
 
 for name, func in algorithms:
     print(f"\n===== {name} =====")
@@ -131,3 +153,5 @@ for name, func in algorithms:
 
     print(f"Article 2 (exists):   {measure_time(func, text2, existing2):.6f} s")
     print(f"Article 2 (missing):  {measure_time(func, text2, missing2):.6f} s")
+
+    print("-" * 40)
